@@ -6,17 +6,18 @@ namespace Patterns\Tests;
 
 use DateTimeImmutable;
 use InvalidArgumentException;
+use JsonSerializable;
 use PHPUnit\Framework\TestCase;
 use Patterns\FileStats;
 use Patterns\IFilesystem;
 use Patterns\IStatable;
 use Patterns\Tests\Fakes\FakeFilesystem;
 use Patterns\Tests\Fakes\FakeStatableFilesystem;
-use Patterns\ValueObject;
 use ReflectionClass;
 use ReflectionMethod;
 use ReflectionNamedType;
 use ReflectionParameter;
+use ReflectionProperty;
 
 final class FilesystemContractTest extends TestCase
 {
@@ -201,14 +202,27 @@ final class FilesystemContractTest extends TestCase
     public function testFileStatsExposesExactlyFourFacts(): void
     {
         $this->assertSame(
-            ['create', 'isDir', 'modified', 'path', 'size', 'toArray'],
+            ['create', 'isDir', 'jsonSerialize', 'modified', 'path', 'size', 'toArray'],
             self::methods(FileStats::class, true)
         );
     }
 
-    public function testFileStatsIsAValueObjectShapeNotAUnit(): void
+    public function testFileStatsIsAPlainStandaloneShape(): void
     {
-        $this->assertTrue(is_subclass_of(FileStats::class, ValueObject::class));
+        $reflection = new ReflectionClass(FileStats::class);
+
+        $this->assertFalse($reflection->getParentClass(), 'FileStats needs no base class');
+        $this->assertTrue($reflection->implementsInterface(JsonSerializable::class));
+    }
+
+    public function testFileStatsIsImmutable(): void
+    {
+        foreach (['path', 'size', 'modified', 'isDir'] as $name) {
+            $property = new ReflectionProperty(FileStats::class, $name);
+
+            $this->assertTrue($property->isReadOnly(), $name . ' must be readonly');
+            $this->assertTrue($property->isPrivate(), $name . ' must not be public API');
+        }
     }
 
     public function testFileStatsCarriesNoPosixDetail(): void
@@ -228,7 +242,6 @@ final class FilesystemContractTest extends TestCase
 
         $this->assertSame($stats->toArray(), $restored->toArray());
         $this->assertSame(json_encode($stats), json_encode($restored));
-        $this->assertTrue($stats->equals($restored));
     }
 
     public function testFileStatsIsJsonSerializable(): void
@@ -273,21 +286,6 @@ final class FilesystemContractTest extends TestCase
         $this->expectExceptionMessageMatches('/modified is required/');
 
         FileStats::create(['path' => 'a.txt', 'size' => 1]);
-    }
-
-    public function testFileStatsEqualityIsDeepAndTypeSafe(): void
-    {
-        $stats = self::stats();
-
-        $this->assertTrue($stats->equals(self::stats()));
-        $this->assertFalse($stats->equals(FileStats::create([
-            'path'     => 'reports/2026.json',
-            'size'     => 999,
-            'modified' => '2026-10-06T08:00:00+00:00',
-            'isDir'    => false,
-        ])));
-        $this->assertFalse($stats->equals('reports/2026.json'));
-        $this->assertFalse($stats->equals(null));
     }
 
     // -----------------------------------------------------------------------

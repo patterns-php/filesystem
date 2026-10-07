@@ -7,30 +7,31 @@ namespace Patterns;
 use DateTimeImmutable;
 use DateTimeInterface;
 use InvalidArgumentException;
+use JsonSerializable;
 
 /**
  * FileStats - the shape IStatable::stat() returns.
  *
- * A ValueObject, not a Unit: it is data about a moment, it does nothing, and it
- * has no version of its own. Two stats that describe the same path the same way
- * are the same value.
+ * A plain, immutable value: four facts about a path at a moment, plus the
+ * ability to read them back and to persist them. Not a Unit - it has no
+ * identity and no version of its own - and not a ValueObject subclass either:
+ * it needs neither the base class nor the dependency, so it stands alone.
  *
  * Four facts only. `mode`, `isSymbolicLink` and `atime` are deliberately
  * absent: they are POSIX detail, and a shape that half the backends implementing
  * IStatable cannot fill is a lie told in the type system.
  *
  * `modified` is stored as an ISO-8601 string rather than a DateTimeImmutable so
- * that equality, JSON and a round trip through persisted provenance all agree
- * on one representation.
+ * that JSON and a round trip through persisted data agree on one representation.
  */
-final class FileStats extends ValueObject
+final class FileStats implements JsonSerializable
 {
-    /**
-     * @param array<string, mixed> $props
-     */
-    private function __construct(array $props)
-    {
-        parent::__construct($props);
+    private function __construct(
+        private readonly string $path,
+        private readonly int $size,
+        private readonly string $modified,
+        private readonly bool $isDir,
+    ) {
     }
 
     /**
@@ -44,32 +45,32 @@ final class FileStats extends ValueObject
             throw new InvalidArgumentException('FileStats: path is required');
         }
 
-        return new self([
-            'path'     => $path,
-            'size'     => (int) ($props['size'] ?? 0),
-            'modified' => self::moment($props['modified'] ?? null),
-            'isDir'    => (bool) ($props['isDir'] ?? false),
-        ]);
+        return new self(
+            $path,
+            (int) ($props['size'] ?? 0),
+            self::moment($props['modified'] ?? null),
+            (bool) ($props['isDir'] ?? false),
+        );
     }
 
     public function path(): string
     {
-        return $this->props['path'];
+        return $this->path;
     }
 
     public function size(): int
     {
-        return $this->props['size'];
+        return $this->size;
     }
 
     public function modified(): DateTimeImmutable
     {
-        return new DateTimeImmutable($this->props['modified']);
+        return new DateTimeImmutable($this->modified);
     }
 
     public function isDir(): bool
     {
-        return $this->props['isDir'];
+        return $this->isDir;
     }
 
     /**
@@ -77,7 +78,20 @@ final class FileStats extends ValueObject
      */
     public function toArray(): array
     {
-        return $this->toProps();
+        return [
+            'path'     => $this->path,
+            'size'     => $this->size,
+            'modified' => $this->modified,
+            'isDir'    => $this->isDir,
+        ];
+    }
+
+    /**
+     * @return array{path: string, size: int, modified: string, isDir: bool}
+     */
+    public function jsonSerialize(): array
+    {
+        return $this->toArray();
     }
 
     /**

@@ -5,6 +5,21 @@ All notable changes to `patterns/filesystem` are documented here.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) ·
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-07
+
+### Changed
+
+- `Patterns\FileStats` is now a **plain immutable class** instead of a
+  `Patterns\ValueObject` subclass. It was carrying a base class and a package
+  dependency for behaviour it can state in ten lines of its own: four readonly
+  properties, typed accessors, `toArray()` and `jsonSerialize()`.
+- The package therefore has **no dependencies at all** — `patterns/value-object`
+  is no longer required. Published a day after 1.0.0 with no known consumers, so
+  this ships as a minor rather than a major; note that `FileStats` no longer
+  answers to `instanceof ValueObject` and no longer inherits `equals()`.
+
+[1.1.0]: https://github.com/patterns-php/filesystem/releases/tag/v1.1.0
+
 ## [1.0.0] - 2026-10-07
 
 ### Added

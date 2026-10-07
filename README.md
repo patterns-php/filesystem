@@ -13,7 +13,7 @@ one package.
 - Port: `Patterns\IFilesystem`
 - Capability: `Patterns\IStatable`
 - Shape: `Patterns\FileStats`
-- Depends on: `patterns/value-object` (so `FileStats` is a real ValueObject)
+- Dependencies: **none**
 - PHP: `>=8.1`
 
 ---
@@ -129,10 +129,12 @@ $stats->toArray();            // back to the array above
 and a shape that half the backends implementing `IStatable` cannot fill is a lie told
 in the type system.
 
-`modified` is stored as an ISO-8601 string rather than a date object, so equality,
-JSON and a round trip through persisted data all agree on one representation. Whatever
-the backend hands over — an epoch, a date string, a `DateTimeInterface` — `create()`
-normalizes it.
+`FileStats` is a plain, immutable class — four readonly properties and typed
+accessors, no base class, no dependencies.
+
+`modified` is stored as an ISO-8601 string rather than a date object, so JSON and a
+round trip through persisted data agree on one representation. Whatever the backend
+hands over — an epoch, a date string, a `DateTimeInterface` — `create()` normalizes it.
 
 ## Implementing it
 
@@ -230,10 +232,10 @@ composer test
 vendor/bin/phpunit -c phpunit.xml
 ```
 
-24 tests, 97 assertions. The suite runs without `composer install` — `tests/bootstrap.php`
-bridges to the sibling `patterns/value-object` when it is not installed. It pins the
-shape of both contracts (add a method and it fails), proves the port is satisfiable by
-an array with no base class, and checks that `FileStats` normalizes and round-trips.
+24 tests, 101 assertions. The suite runs without `composer install` — `tests/bootstrap.php`
+self-autoloads the package. It pins the shape of both contracts (add a method and it
+fails), proves the port is satisfiable by an array with no base class, and checks that
+`FileStats` normalizes, round-trips and cannot be mutated.
 
 ## License
 
